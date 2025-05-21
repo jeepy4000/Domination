@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Domination</title>
+  <style>
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(10, 40px);
+      grid-template-rows: repeat(10, 40px);
+      gap: 2px;
+    }
+    .cell {
+      width: 40px;
+      height: 40px;
+      background-color: lightgray;
+      border: 1px solid #ccc;
+      text-align: center;
+      line-height: 40px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Domination</h1>
+  <input id="gameCode" placeholder="Enter or create game code" />
+  <button onclick="joinGame()">Join Game</button>
+  <div id="status"></div>
+  <div id="grid"></div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDWJPBtrx-vITvuIiDIu3Aj1JB656yZEug",
+      authDomain: "domination-8243d.firebaseapp.com",
+      projectId: "domination-8243d",
+      storageBucket: "domination-8243d.firebasestorage.app",
+      messagingSenderId: "346344046406",
+      appId: "1:346344046406:web:c16c847c887f18bd582f47"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let gameId = "";
+    let isMyTurn = false;
+    let player = "";
+
+    function joinGame() {
+      gameId = document.getElementById("gameCode").value;
+      if (!gameId) return alert("Enter a game code!");
+
+      const gameRef = db.ref("games/" + gameId);
+      gameRef.once("value", snapshot => {
+        if (snapshot.exists()) {
+          player = "player2";
+          isMyTurn = false;
+        } else {
+          player = "player1";
+          isMyTurn = true;
+          gameRef.set({
+            turn: "player1",
+            grid: Array(100).fill(null)
+          });
+        }
+
+        listenForChanges();
+        renderGrid();
+        document.getElementById("status").innerText = "You are " + player;
+      });
+    }
+
+    function listenForChanges() {
+      const gameRef = db.ref("games/" + gameId);
+      gameRef.on("value", snapshot => {
+        const data = snapshot.val();
+        if (!data) return;
+        isMyTurn = data.turn === player;
+        renderGrid(data.grid);
+      });
+    }
+
+    function renderGrid(gridData = Array(100).fill(null)) {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      gridData.forEach((val, idx) => {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.innerText = val ? (val === "player1" ? "X" : "O") : "";
+        cell.onclick = () => handleClick(idx, gridData);
+        grid.appendChild(cell);
+      });
+    }
+
+    function handleClick(index, gridData) {
+      if (!isMyTurn || gridData[index]) return;
+
+      gridData[index] = player;
+      const gameRef = db.ref("games/" + gameId);
+      gameRef.update({
+        grid: gridData,
+        turn: player === "player1" ? "player2" : "player1"
+      });
+    }
+  </script>
+</body>
+</html>
