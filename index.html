@@ -3,11 +3,18 @@
 <head>
   <title>Domination</title>
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
     #grid {
       display: grid;
       grid-template-columns: repeat(10, 40px);
       grid-template-rows: repeat(10, 40px);
       gap: 2px;
+      justify-content: center;
+      margin-top: 20px;
     }
     .cell {
       width: 40px;
@@ -18,14 +25,16 @@
       line-height: 40px;
       cursor: pointer;
       font-weight: bold;
+      font-size: 20px;
     }
   </style>
 </head>
 <body>
   <h1>Domination</h1>
-  <input id="gameCode" placeholder="Enter or create game code" />
+  <input id="gameCode" placeholder="Enter game code" />
+  <button onclick="createGame()">Create Game</button>
   <button onclick="joinGame()">Join Game</button>
-  <div id="status"></div>
+  <div id="status" style="margin-top: 10px; font-weight: bold;"></div>
   <div id="grid"></div>
 
   <!-- Firebase SDKs -->
@@ -33,6 +42,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
 
   <script>
+    // Your Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDWJPBtrx-vITvuIiDIu3Aj1JB656yZEug",
       authDomain: "domination-8243d.firebaseapp.com",
@@ -42,6 +52,7 @@
       appId: "1:346344046406:web:c16c847c887f18bd582f47"
     };
 
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -49,8 +60,27 @@
     let isMyTurn = false;
     let player = "";
 
+    function createGame() {
+      const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase(); // e.g. "D3K4XY"
+      document.getElementById("gameCode").value = randomCode;
+
+      gameId = randomCode;
+      player = "player1";
+      isMyTurn = true;
+
+      const gameRef = db.ref("games/" + gameId);
+      gameRef.set({
+        turn: "player1",
+        grid: Array(100).fill(null)
+      });
+
+      listenForChanges();
+      renderGrid();
+      document.getElementById("status").innerText = `Game created: ${gameId} — You are ${player}`;
+    }
+
     function joinGame() {
-      gameId = document.getElementById("gameCode").value;
+      gameId = document.getElementById("gameCode").value.toUpperCase();
       if (!gameId) return alert("Enter a game code!");
 
       const gameRef = db.ref("games/" + gameId);
@@ -58,18 +88,12 @@
         if (snapshot.exists()) {
           player = "player2";
           isMyTurn = false;
+          listenForChanges();
+          renderGrid();
+          document.getElementById("status").innerText = `Joined game: ${gameId} — You are ${player}`;
         } else {
-          player = "player1";
-          isMyTurn = true;
-          gameRef.set({
-            turn: "player1",
-            grid: Array(100).fill(null)
-          });
+          alert("Game not found. Ask your friend for the correct code or create a new game.");
         }
-
-        listenForChanges();
-        renderGrid();
-        document.getElementById("status").innerText = "You are " + player;
       });
     }
 
@@ -80,6 +104,7 @@
         if (!data) return;
         isMyTurn = data.turn === player;
         renderGrid(data.grid);
+        document.getElementById("status").innerText = `You are ${player} — ${isMyTurn ? "Your turn" : "Opponent's turn"}`;
       });
     }
 
